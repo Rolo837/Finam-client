@@ -4,7 +4,7 @@ from __future__ import annotations
 from finam_client.errors import ErrorCategory, FinamError
 
 def _is_symbol(value: str) -> bool:
-    # Real Finam symbols are not limited to [A-Za-z0-9._-]: 6% of AllAssets have
+    # Real Finam symbols are not limited to [A-Za-z0-9._-]: 2.3% of AllAssets (2.6% of active) have
     # tickers with '/', ' ', '+', '$', '(', '&', CJK, even '@', and mics such as
     # '#WWCP' or '_CRYP' (verified 2026-10-03, scripts/verify_finam_venue.py). The
     # mic never contains '@', so split on the last one. Only a bare ticker is rejected.
