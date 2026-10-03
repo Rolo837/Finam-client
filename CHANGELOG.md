@@ -22,3 +22,7 @@
   вызовов с собственной паузой `GrpcTuning.rate_limit_backoff_sec`; ордера по-прежнему
   не повторяются;
 - `scripts/verify_finam_venue.py` — read-only сверка каталога с Finam (этап 0).
+- документация: `docs/API.md` (методы клиента с параметрами, RPC, полями запроса и ответа),
+  `docs/STRUCTURES.md` (все структуры и enum из proto с описаниями полей), `docs/USAGE.md`
+  (подключение, символы, свечи, лимиты). `API.md` и `STRUCTURES.md` генерирует
+  `scripts/generate_docs.py`, `tests/test_docs_in_sync.py` проверяет актуальность.
