@@ -469,6 +469,7 @@ get_asset_params(symbol: str, account_id: str) -> assets_service.GetAssetParamsR
 | `short_initial_margin` | `Money` | Начальные требования, сколько на счету должно быть свободных денежных средств, чтобы открыть шорт позицию, для FORTS счетов равен биржевому ГО |
 | `is_tradable` | `BoolValue` | Доступны ли торговые операции Новое поле. Позволяет различать false и "не установлено". |
 | `price_type` | [`assets.PriceType`](STRUCTURES.md#assets-pricetype) | Допустимая цена. Помогает определить можно ли выставлять ордера с отрицательной ценой для финансового инструмента |
+| `trade_lot_size` | `int64` | Размер лота инструмента для торговых операций. Если поле равно 0 - значение отсутствует |
 
 <a id="schedule"></a>
 ### `schedule`
@@ -582,6 +583,8 @@ place_order(order: orders_service.Order) -> orders_service.OrderState
 | `executed_quantity` | `Decimal` | Исполненный объем (заполняется только для биржевой заявки) |
 | `remaining_quantity` | `Decimal` | Оставшийся объем (заполняется только для биржевой заявки) |
 | `sltp_order` | [`orders.SLTPOrder`](STRUCTURES.md#orders-sltporder) | Информация о SL/TP заявке |
+| `triggered_order_id` | `string` | Идентификатор биржевой заявки, порожденной в результате срабатывания условия или достижения стоп-цены. |
+| `status_description` | `StringValue` | Описание статуса заявки |
 
 <a id="cancel_order"></a>
 ### `cancel_order`
@@ -626,6 +629,8 @@ cancel_order(account_id: str, order_id: str) -> orders_service.OrderState
 | `executed_quantity` | `Decimal` | Исполненный объем (заполняется только для биржевой заявки) |
 | `remaining_quantity` | `Decimal` | Оставшийся объем (заполняется только для биржевой заявки) |
 | `sltp_order` | [`orders.SLTPOrder`](STRUCTURES.md#orders-sltporder) | Информация о SL/TP заявке |
+| `triggered_order_id` | `string` | Идентификатор биржевой заявки, порожденной в результате срабатывания условия или достижения стоп-цены. |
+| `status_description` | `StringValue` | Описание статуса заявки |
 
 <a id="get_order"></a>
 ### `get_order`
@@ -670,6 +675,8 @@ get_order(account_id: str, order_id: str) -> orders_service.OrderState
 | `executed_quantity` | `Decimal` | Исполненный объем (заполняется только для биржевой заявки) |
 | `remaining_quantity` | `Decimal` | Оставшийся объем (заполняется только для биржевой заявки) |
 | `sltp_order` | [`orders.SLTPOrder`](STRUCTURES.md#orders-sltporder) | Информация о SL/TP заявке |
+| `triggered_order_id` | `string` | Идентификатор биржевой заявки, порожденной в результате срабатывания условия или достижения стоп-цены. |
+| `status_description` | `StringValue` | Описание статуса заявки |
 
 <a id="get_orders"></a>
 ### `get_orders`
@@ -741,6 +748,10 @@ place_sltp_order(order: orders_service.SLTPOrder) -> orders_service.OrderState
 | `valid_before` | [`orders.ValidBefore`](STRUCTURES.md#orders-validbefore) | Срок действия условной заявки. Если не заполнено, то по умолчанию выставляется VALID_BEFORE_GOOD_TILL_CANCEL |
 | `valid_expiry_time` | `Timestamp` | Временная метка прекращения действия SL/TP заявки |
 | `comment` | `string` | Метка заявки. (максимум 128 символов) |
+| `sl_qty_measure` | [`orders.SLTPQtyMeasure`](STRUCTURES.md#orders-sltpqtymeasure) | Единица измерения объёма для Stop Loss части. Если SLTP_QTY_MEASURE_PERCENT — quantity_sl трактуется как процент (0–100) от позиции на момент исполнения. |
+| `tp_qty_measure` | [`orders.SLTPQtyMeasure`](STRUCTURES.md#orders-sltpqtymeasure) | Единица измерения объёма для Take Profit части. Если SLTP_QTY_MEASURE_PERCENT — quantity_tp трактуется как процент (0–100) от позиции на момент исполнения. |
+| `sl_guard_time` | `Int32Value` | Защитное время StopLoss, в секундах. Допустимы только неотрицательные целочисленные значения. Если поле не указано, значение принимается равным нулю. |
+| `tp_guard_time` | `Int32Value` | Защитное время TakeProfit, в секундах. Допустимы только неотрицательные целочисленные значения. Если поле не указано, значение принимается равным нулю. |
 
 **Поля ответа** `orders.OrderState`
 
@@ -757,6 +768,8 @@ place_sltp_order(order: orders_service.SLTPOrder) -> orders_service.OrderState
 | `executed_quantity` | `Decimal` | Исполненный объем (заполняется только для биржевой заявки) |
 | `remaining_quantity` | `Decimal` | Оставшийся объем (заполняется только для биржевой заявки) |
 | `sltp_order` | [`orders.SLTPOrder`](STRUCTURES.md#orders-sltporder) | Информация о SL/TP заявке |
+| `triggered_order_id` | `string` | Идентификатор биржевой заявки, порожденной в результате срабатывания условия или достижения стоп-цены. |
+| `status_description` | `StringValue` | Описание статуса заявки |
 
 <a id="subscribe_order_trade_stream"></a>
 ### `subscribe_order_trade_stream`

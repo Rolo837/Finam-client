@@ -108,6 +108,37 @@ service CorporateActionsService {
     };
   };
 
+  // Получить календарь будущих событий по облигациям
+  rpc GetFutureBondsEvents(GetFutureBondsEventsRequest) returns (GetFutureBondsEventsResponse) {
+    option (google.api.http) = {
+      get: "/v1/bonds/future"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      security: [
+        {
+          security_requirement: {
+            key: "Authorization"
+          }
+        }
+      ]
+    };
+  };
+
+  // Получить календарь исторических событий по облигациям
+  rpc GetPastBondsEvents(GetPastBondsEventsRequest) returns (GetPastBondsEventsResponse) {
+    option (google.api.http) = {
+      get: "/v1/bonds/past"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      security: [
+        {
+          security_requirement: {
+            key: "Authorization"
+          }
+        }
+      ]
+    };
+  };
 
   // Получить список предстоящих (будущих) дивидендных выплат по инструменту.
   rpc GetFutureDividends(GetFutureDividendsRequest) returns (GetFutureDividendsResponse) {
@@ -201,6 +232,127 @@ message GetPastSplitsResponse {
   Pagination pagination = 2;
   // Информация о сплитах
   repeated SplitInfo splits = 3;
+}
+
+// Запрос календаря будущих событий по облигациям
+message GetFutureBondsEventsRequest {
+  // Символ инструмента
+  string symbol = 1;
+  // Начало временного интервала
+  google.type.Date date_from = 2;
+  // Конец временного интервала. По умолчанию отдаются данные за год.
+  google.type.Date date_to = 3;
+  // Направление сортировки по дате: asc — от старых к новым, desc — от новых к старым
+  SortDirection sort_direction = 4;
+  // Лимит. Ограничивает количество возвращаемых событий по облигациям в списке
+  int32 limit = 5;
+  // Смещение. Указывает количество событий по облигациям, которые нужно пропустить перед тем, как начать возвращать результат
+  int32 offset = 6;
+}
+
+// Календарь будущих событий по облигациям
+message GetFutureBondsEventsResponse {
+  // Символ инструмента
+  string symbol = 1;
+  // Параметры пагинации. Параметр total игнорируется.
+  Pagination pagination = 2;
+  // События по облигациям
+  repeated BondEvent events = 3;
+}
+
+// Запрос календаря исторических событий по облигациям
+message GetPastBondsEventsRequest {
+  // Символ инструмента
+  string symbol = 1;
+  // Начало временного интервала
+  google.type.Date date_from = 2;
+  // Конец временного интервала. По умолчанию отдаются данные за год.
+  google.type.Date date_to = 3;
+  // Направление сортировки по дате: asc — от старых к новым, desc — от новых к старым
+  SortDirection sort_direction = 4;
+  // Лимит. Ограничивает количество возвращаемых событий по облигациям в списке
+  int32 limit = 5;
+  // Смещение. Указывает количество событий по облигациям, которые нужно пропустить перед тем, как начать возвращать результат
+  int32 offset = 6;
+}
+
+// Календарь исторических событий по облигациям
+message GetPastBondsEventsResponse {
+  // Символ инструмента
+  string symbol = 1;
+  // Параметры пагинации. Параметр total игнорируется.
+  Pagination pagination = 2;
+  // События по облигациям
+  repeated BondEvent events = 3;
+}
+
+// Событие по облигации
+message BondEvent {
+  // Дата события
+  google.type.Date date = 1;
+  // Тип события
+  BondEventType type = 2;
+  // Сумма выплаты (опционально: для оферты может отсутствовать, если важна только цена)
+  google.type.Decimal value = 3;
+  // Валюта выплаты
+  google.protobuf.StringValue currency = 4;
+  // Специфичные детали события
+  oneof event_details {
+    // Детали купонной выплаты
+    CouponEventDetails coupon_details = 5;
+    // Детали амортизации (частичного погашения номинала облигации)
+    AmortizationEventDetails amortization_details = 6;
+    // Детали оферты (событие досрочного выкупа или погашения)
+    OfferEventDetails offer_details = 7;
+  }
+}
+
+// Тип события по облигациям
+enum BondEventType {
+
+  UNSPECIFIED = 0;
+
+  COUPON = 1;
+
+  AMORTIZATION = 2;
+
+  OFFER = 3;
+}
+
+// Детали купонной выплаты
+message CouponEventDetails {
+  // Дата фиксации реестра (Record Date)
+  google.type.Date record_date = 1;
+  // Дата начала купонного периода
+  google.type.Date start_date = 2;
+  // Номинал, на который начисляется купон
+  google.type.Decimal face_value = 3;
+  // Ставка купона в процентах
+  google.type.Decimal value_percent = 4;
+}
+
+// Детали амортизации (частичного погашения номинала облигации)
+message AmortizationEventDetails {
+  // Остаточный номинал после амортизации
+  google.type.Decimal new_face_value = 1;
+  // Первоначальный номинал бумаги
+  google.type.Decimal initial_face_value = 2;
+  // Доля амортизации от номинала в процентах
+  google.type.Decimal amortization_percent = 3;
+}
+
+// Детали оферты (событие досрочного выкупа или погашения)
+message OfferEventDetails {
+  // PUT или CALL
+  google.protobuf.StringValue offer_type = 1;
+  // Цена оферты в процентах от номинала (или в валюте)
+  google.type.Decimal price = 2;
+  // Дата начала периода предъявления к оферте
+  google.type.Date start_date = 3;
+  // Дата окончания периода предъявления к оферте
+  google.type.Date end_date = 4;
+  // Агент по оферте
+  google.protobuf.StringValue agent = 5;
 }
 
 // Информация о корпоративном действии

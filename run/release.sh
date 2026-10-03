@@ -62,9 +62,25 @@ run_or_echo() {
     fi
 }
 
+# Актуальность vendored proto: локальная целостность (хэш proto/, stubs) блокирует релиз;
+# новый тег upstream - предупреждение. PROTO_STRICT=1 делает и его блокирующим.
+check_proto() {
+    local strict=()
+    [ "${PROTO_STRICT:-0}" = "1" ] && strict=(--strict)
+    local rc=0
+    python3 "$PROJECT_ROOT/scripts/proto_sync.py" check --online "${strict[@]}" || rc=$?
+    case "$rc" in
+        0) ;;
+        1) echo -e "${RED}Ошибка: proto/ или stubs не соответствуют записанному источнику (proto/UPSTREAM.json)${NC}" >&2; exit 1 ;;
+        3) echo -e "${RED}Ошибка: есть более новый релиз Finam Trade API (PROTO_STRICT=1). Обновите: python scripts/proto_sync.py update${NC}" >&2; exit 1 ;;
+        *) echo -e "${YELLOW}Предупреждение: не удалось сверить proto с upstream (код ${rc})${NC}" >&2 ;;
+    esac
+}
+
 preflight_common() {
     require_branch "develop"
     "$SCRIPT_DIR/check-version.sh"
+    check_proto
     if ! command -v gh >/dev/null 2>&1; then
         echo -e "${RED}Ошибка: нужен GitHub CLI (gh). https://cli.github.com/${NC}" >&2
         exit 1

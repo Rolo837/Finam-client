@@ -15,7 +15,7 @@
 | [`docs/USAGE.md`](docs/USAGE.md) | как подключаться, символы и площадки, свечи, лимиты, стримы (проверено на живом API) |
 | [`docs/API.md`](docs/API.md) | **все методы клиента**: параметры, RPC, поля запроса и ответа, нейтральные модели, конфиг, ошибки |
 | [`docs/STRUCTURES.md`](docs/STRUCTURES.md) | **все структуры** запросов и ответов с типами и описаниями полей из proto |
-| [`docs/FINAM_PROTO_VERSION.md`](docs/FINAM_PROTO_VERSION.md) | версия proto и обновление |
+| [`docs/FINAM_PROTO_VERSION.md`](docs/FINAM_PROTO_VERSION.md) | контроль актуальности proto (`proto_sync.py check/update`), обновление |
 
 `API.md` и `STRUCTURES.md` генерируются: `python scripts/generate_docs.py` (тест следит за актуальностью).
 

@@ -53,6 +53,17 @@
 | 9 | `comment` | `string` | Метка заявки. (максимум 128 символов) |
 | 10 | `accrued_interest` | `Decimal` | НКД (заполняется на следующий день после даты совершения сделки) |
 | 11 | `currency` | `string` | Валюта цены (например, RUB, USD, EUR) Примечание: поле заполняется только при использовании метода Trades Для SubscribeTrades данное поле может быть пустым в связи с различиями в источниках данных. При обработке сделок из подписки рекомендуется учитывать возможность пустого значения. |
+| 12 | `commission` | [`AccountTrade.Commission`](STRUCTURES.md#accounttrade-commission) | Комиссия. Заполняется для исторических сделок |
+
+<a id="accounttrade-commission"></a>
+#### `AccountTrade.Commission`
+
+Комиссия по сделке
+
+| № | Поле | Тип | Описание |
+|--:|---|---|---|
+| 1 | `value` | `Decimal` | Значение комиссии |
+| 2 | `currency` | `string` | Валюта комиссии |
 
 ## Auth - сессия и токен
 
@@ -298,6 +309,8 @@ _Пустое сообщение._
 | 5 | `maintenance_margin` | `Decimal` | Поддерживающее гарантийное обеспечение. Заполняется только для FORTS позиций |
 | 6 | `daily_pnl` | `Decimal` | Прибыль или убыток за текущий день (PnL). Не заполняется для FORTS позиций |
 | 7 | `unrealized_pnl` | `Decimal` | Суммарная нереализованная прибыль или убыток (PnL) текущей позиции |
+| 8 | `current_price_currency` | `string` | Код валюты текущей цены. Только для общего типа счетов Московской Биржи |
+| 9 | `average_price_currency` | `string` | Код валюты средней цены. Только для общего типа счетов Московской Биржи |
 
 <a id="accounts-transaction"></a>
 #### `accounts.Transaction`
@@ -310,11 +323,13 @@ _Пустое сообщение._
 | 2 | `category` | `string` | Тип транзакции из TransactionCategory |
 | 4 | `timestamp` | `Timestamp` | Метка времени |
 | 5 | `symbol` | `string` | Символ инструмента |
-| 6 | `change` | `Money` | Изменение в деньгах |
+| 6 | `change` | `Money` | Изменение в деньгах, в рублях |
 | 7 | `trade` | [`accounts.Transaction.Trade`](STRUCTURES.md#accounts-transaction-trade) | Информация о сделке |
 | 8 | `transaction_category` | [`accounts.Transaction.TransactionCategory`](STRUCTURES.md#accounts-transaction-transactioncategory) | Категория транзакции из TransactionCategory. |
 | 9 | `transaction_name` | `string` | Наименование транзакции |
 | 10 | `change_qty` | `Decimal` | Изменение в штуках, только для трансфера бумаг (для TransactionCategory = TRANSFER) |
+| 11 | `change_original` | `Money` | Изменение в деньгах, в валюте инструмента |
+| 12 | `symbols` | список `string` | Полный список тикеров, входящих в транзакцию. Поле symbol сохраняется и заполняется первым элементом для обратной совместимости. |
 
 <a id="accounts-transaction-trade"></a>
 #### `accounts.Transaction.Trade`
@@ -539,6 +554,7 @@ _Пустое сообщение._
 | 11 | `short_initial_margin` | `Money` | Начальные требования, сколько на счету должно быть свободных денежных средств, чтобы открыть шорт позицию, для FORTS счетов равен биржевому ГО |
 | 12 | `is_tradable` | `BoolValue` | Доступны ли торговые операции Новое поле. Позволяет различать false и "не установлено". |
 | 13 | `price_type` | [`assets.PriceType`](STRUCTURES.md#assets-pricetype) | Допустимая цена. Помогает определить можно ли выставлять ордера с отрицательной ценой для финансового инструмента |
+| 14 | `trade_lot_size` | `int64` | Размер лота инструмента для торговых операций. Если поле равно 0 - значение отсутствует |
 
 <a id="assets-optionschainrequest"></a>
 #### `assets.OptionsChainRequest`
@@ -710,6 +726,7 @@ _Пустое сообщение._
 | 4 | `sub_sector` | `string` | Отрасль (подотрасль) деятельности компании (например, "Software - Application") |
 | 5 | `cik` | `string` | Уникальный идентификатор компании в базе данных SEC США (Central Index Key) |
 | 6 | `index_inclusion_date` | `Date` | Дата добавления бумаги в индекс |
+| 7 | `weight` | `Decimal` | Вес инструмента в индексе |
 
 ## Orders - заявки
 
@@ -814,6 +831,17 @@ _Пустое сообщение._
 | 0 | `TP_SPREAD_MEASURE_UNDEFINED` | Значение не указано |
 | 1 | `TP_SPREAD_MEASURE_VALUE` | в единицах цены |
 | 2 | `TP_SPREAD_MEASURE_PERCENT` | в процентах, с максимальной точностью до сотых процента |
+
+<a id="orders-sltpqtymeasure"></a>
+#### `orders.SLTPQtyMeasure` (enum)
+
+Единица измерения объёма для SL/TP заявки
+
+| Значение | Имя | Описание |
+|--:|---|---|
+| 0 | `SLTP_QTY_MEASURE_UNDEFINED` | Не определено |
+| 1 | `SLTP_QTY_MEASURE_VALUE` | Количество в единицах (штуках). Значение по умолчанию. |
+| 2 | `SLTP_QTY_MEASURE_PERCENT` | Процент от позиции на момент исполнения, точность до сотых процента |
 
 <a id="orders-ordertraderequest-action"></a>
 #### `orders.OrderTradeRequest.Action` (enum)
@@ -971,6 +999,8 @@ _Пустое сообщение._
 | 9 | `executed_quantity` | `Decimal` | Исполненный объем (заполняется только для биржевой заявки) |
 | 10 | `remaining_quantity` | `Decimal` | Оставшийся объем (заполняется только для биржевой заявки) |
 | 11 | `sltp_order` | [`orders.SLTPOrder`](STRUCTURES.md#orders-sltporder) | Информация о SL/TP заявке |
+| 12 | `triggered_order_id` | `string` | Идентификатор биржевой заявки, порожденной в результате срабатывания условия или достижения стоп-цены. |
+| 13 | `status_description` | `StringValue` | Описание статуса заявки |
 
 <a id="orders-ordersrequest"></a>
 #### `orders.OrdersRequest`
@@ -1029,6 +1059,10 @@ _Пустое сообщение._
 | 21 | `valid_before` | [`orders.ValidBefore`](STRUCTURES.md#orders-validbefore) | Срок действия условной заявки. Если не заполнено, то по умолчанию выставляется VALID_BEFORE_GOOD_TILL_CANCEL |
 | 22 | `valid_expiry_time` | `Timestamp` | Временная метка прекращения действия SL/TP заявки |
 | 23 | `comment` | `string` | Метка заявки. (максимум 128 символов) |
+| 24 | `sl_qty_measure` | [`orders.SLTPQtyMeasure`](STRUCTURES.md#orders-sltpqtymeasure) | Единица измерения объёма для Stop Loss части. Если SLTP_QTY_MEASURE_PERCENT — quantity_sl трактуется как процент (0–100) от позиции на момент исполнения. |
+| 25 | `tp_qty_measure` | [`orders.SLTPQtyMeasure`](STRUCTURES.md#orders-sltpqtymeasure) | Единица измерения объёма для Take Profit части. Если SLTP_QTY_MEASURE_PERCENT — quantity_tp трактуется как процент (0–100) от позиции на момент исполнения. |
+| 26 | `sl_guard_time` | `Int32Value` | Защитное время StopLoss, в секундах. Допустимы только неотрицательные целочисленные значения. Если поле не указано, значение принимается равным нулю. |
+| 27 | `tp_guard_time` | `Int32Value` | Защитное время TakeProfit, в секундах. Допустимы только неотрицательные целочисленные значения. Если поле не указано, значение принимается равным нулю. |
 
 ## MarketData - котировки и свечи
 
@@ -1253,6 +1287,7 @@ _Пустое сообщение._
 | 4 | `low` | `Decimal` | Минимальная цена свечи |
 | 5 | `close` | `Decimal` | Цена закрытия свечи |
 | 6 | `volume` | `Decimal` | Объём торгов за свечу в шт. |
+| 7 | `is_data_snapshot` | `bool` | Признак того, что данные являются снэпшотом |
 
 <a id="marketdata-quote"></a>
 #### `marketdata.Quote`
@@ -1277,6 +1312,7 @@ _Пустое сообщение._
 | 14 | `close` | `Decimal` | Цена закрытия. Дневная |
 | 15 | `change` | `Decimal` | Изменение цены (last минус close) |
 | 16 | `open_interest` | `Decimal` | Открытый интерес. Общее количество незакрытых (активных) контрактов по деривативу. |
+| 17 | `is_data_snapshot` | `bool` | Признак того, что данные являются снэпшотом |
 | 50 | `option` | [`marketdata.Quote.Option`](STRUCTURES.md#marketdata-quote-option) | Информация об опционе _(oneof `additions`)_ |
 
 <a id="marketdata-quote-option"></a>
@@ -1332,6 +1368,7 @@ _Пустое сообщение._
 | 5 | `size` | `Decimal` | Размер сделки |
 | 6 | `side` | [`Side`](STRUCTURES.md#side) | Сторона сделки (buy или sell) |
 | 7 | `open_interest` | `Decimal` | Открытый интерес на момент совершения сделки. |
+| 8 | `is_data_snapshot` | `bool` | Признак того, что данные являются снэпшотом |
 
 <a id="marketdata-streamerror"></a>
 #### `marketdata.StreamError`
@@ -1352,6 +1389,7 @@ _Пустое сообщение._
 |--:|---|---|---|
 | 1 | `symbol` | `string` | Символ инструмента |
 | 2 | `rows` | список [`marketdata.StreamOrderBook.Row`](STRUCTURES.md#marketdata-streamorderbook-row) | Уровни стакана |
+| 3 | `is_data_snapshot` | `bool` | Признак того, что данные являются снэпшотом |
 
 <a id="marketdata-streamorderbook-row"></a>
 #### `marketdata.StreamOrderBook.Row`
@@ -1492,7 +1530,7 @@ _Пустое сообщение._
 | 3 | `date_range` | [`reports.DateRange`](STRUCTURES.md#reports-daterange) | Временной интервал отчёта. Берётся из запроса на генерацию отчёта |
 | 4 | `report_form` | [`reports.ReportForm`](STRUCTURES.md#reports-reportform) | Форма отчета. Берётся из запроса на генерацию отчёта |
 | 5 | `account_id` | `int64` | Идентификатор счета. Берётся из запроса на генерацию отчёта |
-| 6 | `url` | `StringValue` | Ссылка на скачивание отчёта. Появляется только в случае успешной генерации отчёта (ReportCreationStatus = SUCCESS) |
+| 6 | `url` | `StringValue` | Ссылка на скачивание отчёта. Появляется только в случае успешной генерации отчёта (ReportCreationStatus = SUCCESS). Для скачивания отчёта по данной ссылке необходимо передать заголовок Authorization: Bearer <your_access_key> |
 
 <a id="reports-daterange"></a>
 #### `reports.DateRange`
