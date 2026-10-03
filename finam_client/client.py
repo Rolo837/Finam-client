@@ -97,6 +97,8 @@ class FinamApiClient:
     ):
         self._config = config
         self._error_factory = error_factory or default_error_factory
+        self._pace_lock = threading.Lock()
+        self._pace_next = 0.0
         self._secret = secret or read_secret_file(config.secret_file)
         self._channel = None
         self._build_channel()
@@ -283,6 +285,18 @@ class FinamApiClient:
                 parts.append(f"symbols={symbols}")
         return " ".join(parts)
 
+    def _pace(self) -> None:
+        """Keep unary calls at least ``min_interval_sec`` apart (shared by all threads)."""
+        interval = self._config.grpc_client.min_interval_sec
+        if interval <= 0:
+            return
+        with self._pace_lock:
+            now = time.monotonic()
+            wait = max(0.0, self._pace_next - now)
+            self._pace_next = max(now, self._pace_next) + interval
+        if wait:
+            time.sleep(wait)
+
     def _call(self, func, request: Any, *, idempotent: bool = True, auth_metadata: bool = True) -> Any:
         """Invoke a unary gRPC call with retry/backoff/re-auth.
 
@@ -306,6 +320,7 @@ class FinamApiClient:
             logger.debug("gRPC call %s", method)
         last_exc: RpcError | None = None
         for attempt in range(self.GRPC_MAX_ATTEMPTS):
+            self._pace()
             self._ensure_jwt()
             try:
                 call_kwargs: dict[str, Any] = {

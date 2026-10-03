@@ -141,3 +141,33 @@ def test_place_order_does_not_retry_rate_limit(grpc_client):
 
     assert len(calls) == 1
     assert excinfo.value.retryable is False
+
+
+def test_min_interval_paces_unary_calls():
+    from finam_client.config import GrpcTuning
+
+    with patch("finam_client.client.secure_channel"):
+        client = FinamApiClient(
+            ClientConfig(secret_file="unused", grpc_client=GrpcTuning(min_interval_sec=0.5)), secret="s"
+        )
+    client._ensure_jwt = lambda: None
+    client.accounts_stub.GetAccount.with_call = lambda **kw: (object(), None)
+    clock = [100.0]
+
+    def fake_sleep(sec):
+        clock[0] += sec
+
+    with patch("time.monotonic", lambda: clock[0]), patch("time.sleep", fake_sleep):
+        for _ in range(3):
+            client.get_account("acc")
+    # first call is free, the next two each wait one interval
+    assert clock[0] == pytest.approx(101.0)
+    client.close()
+
+
+def test_pacing_is_off_by_default(grpc_client):
+    grpc_client.accounts_stub.GetAccount.with_call = lambda **kw: (object(), None)
+    with patch("time.sleep") as sleep:
+        for _ in range(3):
+            grpc_client.get_account("acc")
+    sleep.assert_not_called()

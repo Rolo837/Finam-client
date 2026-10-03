@@ -16,6 +16,9 @@ class GrpcTuning:
     retry_base_sec: float = 0.4
     # Backoff step for RESOURCE_EXHAUSTED (Finam rate limit, ~200 requests/min).
     rate_limit_backoff_sec: float = 2.0
+    # Minimum pause between unary calls of ONE client (0 = off). Finam allows ~200 requests/min per
+    # token; bulk jobs set e.g. 0.4 (~150/min). Streams and JWT refresh are not paced.
+    min_interval_sec: float = 0.0
     # Time before JWT expiry at which a refresh is forced.
     jwt_refresh_skew_sec: float = 90.0
 
