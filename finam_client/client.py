@@ -235,6 +235,10 @@ class FinamApiClient:
         self._refresh_jwt()
         self._jwt_fail_streak = 0
 
+    @property
+    def jwt_expires_at(self) -> datetime | None:
+        return self._jwt_expires_at
+
     def set_on_jwt_renewed(self, callback: Callable[[], None] | None) -> None:
         """Фаза 3 (typed-swinging-newell.md): register the hook fired after
         every successful ``refresh_session()`` inside the background renewal

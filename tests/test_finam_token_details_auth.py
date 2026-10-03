@@ -63,3 +63,10 @@ def test_load_expires_at_omits_authorization_metadata(grpc_client):
     assert "metadata" not in captured[0]
     assert captured[0]["request"].token == "jwt-after-auth"
     assert grpc_client._jwt_expires_at is not None
+
+
+def test_jwt_expires_at_property(grpc_client):
+    assert grpc_client.jwt_expires_at is None
+    expires = datetime.now(timezone.utc) + timedelta(minutes=5)
+    grpc_client._jwt_expires_at = expires
+    assert grpc_client.jwt_expires_at == expires
