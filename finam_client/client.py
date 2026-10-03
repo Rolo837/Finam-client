@@ -41,6 +41,9 @@ logger = logging.getLogger(__name__)
 # entry got "(14302) FOK и IOC заявки запрещены в аукционе открытия" and was
 # cancelled outright — engine._is_transient_place_error didn't recognize the
 # code (a plain INVALID_ARGUMENT) as retryable.
+_RETRYABLE_CODES = frozenset(
+    {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED, StatusCode.RESOURCE_EXHAUSTED}
+)
 _AUCTION_ONLY_MARKERS = ("(14302)", "аукцион", "auction")
 
 
@@ -319,12 +322,19 @@ class FinamApiClient:
                     continue
                 if (
                     idempotent
-                    and exc.code() in {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED}
+                    and exc.code() in _RETRYABLE_CODES
                     and attempt < self.GRPC_MAX_ATTEMPTS - 1
                 ):
-                    time.sleep(self._config.grpc_client.retry_base_sec * (attempt + 1))
+                    # RESOURCE_EXHAUSTED = Finam's ~200 req/min limit; a sub-second
+                    # backoff cannot outwait it.
+                    base = (
+                        self._config.grpc_client.rate_limit_backoff_sec
+                        if exc.code() == StatusCode.RESOURCE_EXHAUSTED
+                        else self._config.grpc_client.retry_base_sec
+                    )
+                    time.sleep(base * (attempt + 1))
                     continue
-                retryable = idempotent and exc.code() in {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED}
+                retryable = idempotent and exc.code() in _RETRYABLE_CODES
                 category = ErrorCategory.GRPC
                 if exc.code() == StatusCode.UNAUTHENTICATED:
                     category = ErrorCategory.AUTH

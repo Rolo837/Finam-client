@@ -14,6 +14,8 @@ class GrpcTuning:
     timeout_sec: float = 10.0
     max_attempts: int = 3
     retry_base_sec: float = 0.4
+    # Backoff step for RESOURCE_EXHAUSTED (Finam rate limit, ~200 requests/min).
+    rate_limit_backoff_sec: float = 2.0
     # Time before JWT expiry at which a refresh is forced.
     jwt_refresh_skew_sec: float = 90.0
 

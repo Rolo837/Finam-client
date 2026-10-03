@@ -5,10 +5,23 @@ futures are ``MISX:RFUD``. Finam trades the same futures under
 ``mic=RTSX, board=FUT``. This module is the single place that knows the
 difference; AFB and BF both import it.
 
-The table is PRELIMINARY: only ``MISX:RFUD <-> RTSX:FUT`` is confirmed. The
-remaining pairs (currency market ``CETS``, indices, other boards) are verified
-against GetAsset by ``scripts/verify_finam_venue.py`` and added here.
-Tickers are never touched: they are case-sensitive on both sides.
+Verified 2026-10-03 against GetAsset for all 561 active catalog listings
+(``scripts/verify_finam_venue.py``, 561/561 matched):
+
+====================  ==========================  =========================
+catalog (mic, board)  Finam GetAsset (mic, board)  note
+====================  ==========================  =========================
+MISX, TQBR            MISX, TQBR                  identity
+MISX, CETS            MISX, CETS                  1 of 4 pairs has board ""
+MISX, RFUD            RTSX, FUT                   the only translated pair
+MISX, "" (indices)    MISX, "" and RTSX, ""       same series under both mics
+====================  ==========================  =========================
+
+Finam's ``board`` is empty for indices, foreign venues, archived instruments and
+occasionally for CETS, so a match must tolerate an empty Finam board (compare
+``(mic, ticker)`` only) and, when several symbols remain, prefer the mic that
+:func:`to_finam_venue` predicts. Tickers are never touched: they are
+case-sensitive on both sides.
 """
 from __future__ import annotations
 

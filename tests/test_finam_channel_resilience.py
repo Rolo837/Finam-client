@@ -110,3 +110,34 @@ def test_unary_call_still_retries_deadline_exceeded(grpc_client):
 
     assert len(calls) == grpc_client.GRPC_MAX_ATTEMPTS
     assert excinfo.value.retryable is True
+
+
+def test_rate_limit_is_retried_with_its_own_backoff(grpc_client):
+    """RESOURCE_EXHAUSTED (Finam ~200 req/min) retries on idempotent calls, with the
+    rate-limit backoff rather than the sub-second transport one."""
+    calls: list[dict] = []
+
+    def _get_account(**kwargs):
+        calls.append(kwargs)
+        raise _FakeRpcError(StatusCode.RESOURCE_EXHAUSTED, "Too Many Requests")
+
+    grpc_client.accounts_stub.GetAccount.with_call = _get_account
+
+    with patch("time.sleep") as sleep:
+        with pytest.raises(FinamError) as excinfo:
+            grpc_client.get_account("acc-1")
+
+    assert len(calls) == grpc_client.GRPC_MAX_ATTEMPTS
+    assert excinfo.value.retryable is True
+    assert excinfo.value.broker_code == "RESOURCE_EXHAUSTED"
+    assert [c.args[0] for c in sleep.call_args_list] == [2.0, 4.0]
+
+
+def test_place_order_does_not_retry_rate_limit(grpc_client):
+    calls = _install_place_order_failure(grpc_client, _FakeRpcError(StatusCode.RESOURCE_EXHAUSTED))
+
+    with pytest.raises(FinamError) as excinfo:
+        grpc_client.place_order(object())
+
+    assert len(calls) == 1
+    assert excinfo.value.retryable is False
