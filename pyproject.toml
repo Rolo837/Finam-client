@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finam-client"
+version = "1.0.0"
+description = "Finam Trade API gRPC client shared by AFB and BF"
+requires-python = ">=3.11"
+dependencies = [
+    "grpcio>=1.81.1",
+    "protobuf>=6.33,<7",
+    "googleapis-common-protos>=1.63.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "grpcio-tools>=1.81.1",
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+include = ["finam_client*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: live calls to Finam (needs FINAM_RO_TOKEN_FILE)"]
+addopts = "-m 'not integration'"
