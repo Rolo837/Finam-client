@@ -38,9 +38,9 @@ message Interval {
   // or after the start.
   google.protobuf.Timestamp start_time = 1;
 
-  // Optional. Exclusive end of the interval.
+  // Exclusive end of the interval.
   //
-  // If specified, a Timestamp matching this interval will have to be before the
+  // A Timestamp matching this interval will have to be before the
   // end.
   google.protobuf.Timestamp end_time = 2;
 }
