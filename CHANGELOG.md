@@ -4,6 +4,10 @@
 
 ## v1.0.1 — 2026-10-05
 
+- `GrpcTuning.min_interval_sec`: минимальная пауза между унарными вызовами одного клиента (общая для потоков; по умолчанию 0 - выключено). Нужна массовым задачам под лимит Finam ~200 запросов/мин (AFB ставит 0.4 с).
+
+## v1.0.0 — 2026-10-03
+
 **Первая версия пакета (1.0.0).** Общий клиент Finam Trade API для AFB и BF, вынесенный
 из BF (`belphegor/brokers/finam`):
 - vendored proto Finam Trade API 2.16.0 и скрипт `scripts/generate.py`; stubs в
@@ -30,4 +34,3 @@
   `scripts/generate_docs.py`, `tests/test_docs_in_sync.py` проверяет актуальность.
 - proto обновлены с Finam Trade API 2.16.0 до **2.23.0** (изменения только добавляющие, удалённых объявлений нет): `Position`/`trade`: `current_price_currency`, `average_price_currency`, `change_original`, `symbols`, `trade_lot_size`, `is_data_snapshot` в потоках; `SLTPQtyMeasure` и `sl_qty_measure`/`tp_qty_measure`, `sl_guard_time`/`tp_guard_time`, `triggered_order_id`, `status_description` у заявок; `commission` у сделок; в `corporateactions` - RPC `GetFutureBondsEvents`/`GetPastBondsEvents` (сервис не генерируется клиентом). Stubs перегенерированы, `docs/API.md` и `docs/STRUCTURES.md` обновлены.
 - контроль актуальности proto: `proto/UPSTREAM.json` (тег, коммит upstream и хэш скопированного дерева), `scripts/proto_sync.py` - `check` (хэш proto/ и соответствие stubs дескрипторам, офлайн), `check --online` (есть ли более новый релизный тег в FinamWeb/finam-trade-api), `update [--tag]` (забрать тег, заменить proto/, перегенерировать stubs и документацию, показать удалённые/изменённые объявления). Проверка офлайн входит в `pytest`; `run/release.sh` сверяется с upstream перед `tag`/`publish` (новый тег - предупреждение, `PROTO_STRICT=1` - ошибка).
-- `GrpcTuning.min_interval_sec`: минимальная пауза между унарными вызовами одного клиента (общая для потоков; по умолчанию 0 - выключено). Нужна массовым задачам под лимит Finam ~200 запросов/мин (AFB ставит 0.4 с).
