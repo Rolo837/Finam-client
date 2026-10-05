@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.0.1 — 2026-10-05
+
 **Первая версия пакета (1.0.0).** Общий клиент Finam Trade API для AFB и BF, вынесенный
 из BF (`belphegor/brokers/finam`):
 - vendored proto Finam Trade API 2.16.0 и скрипт `scripts/generate.py`; stubs в
