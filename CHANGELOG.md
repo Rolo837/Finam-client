@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v1.0.2 — 2026-10-21
+
 - `parse_rpc_error(exc) -> RpcErrorFacts` (`grpc_status`, `native_code`, `native_message`, `outcome_unknown`): единый разбор любой ошибки Finam (унарные вызовы, заявки, `Auth`, `TokenDetails`; для стримов - вызывается потребителем). `native_message` без префикса `gRPC error:`/статуса/номера, сегменты через `\f` сохраняются, разделитель - перевод строки.
 - `FinamError` и `error_factory` получили необязательные `grpc_status`, `native_code`, `native_message`, `outcome_unknown`; новые kwargs передаются фабрике только если она их принимает. `message` остаётся полным.
 - **Breaking для потребителей `broker_code`:** удалены ярлыки `auction_only` и `insufficient_funds` (и `_classify_broker_code`); трансляция по `native_code` переезжает к потребителю (BF). `broker_code` оставлен только для совместимости: имя gRPC-статуса либо `place_timeout`.
