@@ -101,6 +101,7 @@ resp = client.bars("SBER@MISX", md.TimeFrame.TIME_FRAME_H1, end - timedelta(days
 - `place_order` и `place_sltp_order` не повторяются. `broker_code == "place_timeout"` -
   таймаут заявки, исход неизвестен; сверяйтесь по `client_order_id`.
 - `broker_code == "auction_only"` - отказ из-за аукциона, заявку можно повторить после него.
+- `broker_code == "insufficient_funds"` - `INVALID_ARGUMENT` "[145]No enough coverage" / "Недостаток обеспечения": заявка больше доступного обеспечения, повтор не поможет.
 
 ## Стримы
 

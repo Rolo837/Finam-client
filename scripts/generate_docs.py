@@ -605,8 +605,9 @@ def build_api(services, comments: ProtoComments, used_by) -> str:
     for c in errors.ErrorCategory:
         out.append(f"| `{c.name}` | `{c.value}` |")
     out += ["", "`broker_code` - имя gRPC-статуса (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`, `INVALID_ARGUMENT`, ...),",
-            "а также `place_timeout` (таймаут заявки: исход неизвестен) и `auction_only`",
-            "(отказ из-за аукциона: заявку можно повторить позже).", ""]
+            "а также `place_timeout` (таймаут заявки: исход неизвестен), `auction_only`",
+            "(отказ из-за аукциона: заявку можно повторить позже) и `insufficient_funds`",
+            "(недостаточно обеспечения: постоянный отказ, повторять не нужно).", ""]
 
     out += ["## Площадки и символы", ""]
     out += render_functions("finam_client.venue", ["to_finam_venue", "from_finam_venue", "finam_board_from_venue"])

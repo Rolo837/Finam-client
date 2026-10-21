@@ -45,12 +45,18 @@ _RETRYABLE_CODES = frozenset(
     {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED, StatusCode.RESOURCE_EXHAUSTED}
 )
 _AUCTION_ONLY_MARKERS = ("(14302)", "аукцион", "auction")
+# Confirmed live (счёт test, лимитная заявка заведомо больше счёта): INVALID_ARGUMENT
+# "[145]No enough coverage. You need 396831.50 RUR / Недостаток обеспечения в сумме
+# 396831.50 RUR" — постоянный отказ из-за нехватки обеспечения (не повторять).
+_INSUFFICIENT_FUNDS_MARKERS = ("[145]", "no enough coverage", "недостаток обеспечения")
 
 
 def _classify_broker_code(detail: str) -> str | None:
     lowered = (detail or "").lower()
     if any(marker in lowered for marker in _AUCTION_ONLY_MARKERS):
         return "auction_only"
+    if any(marker in lowered for marker in _INSUFFICIENT_FUNDS_MARKERS):
+        return "insufficient_funds"
     return None
 
 
