@@ -1396,9 +1396,11 @@ _Поля отсутствуют._
 
 ## Ошибки
 
-`FinamError(category, message, retryable=False, broker_code=None)` - исключение по умолчанию.
-Потребитель может передать `error_factory(category, message, *, retryable, broker_code)`,
-чтобы клиент бросал собственный тип (BF передаёт `BrokerError`).
+`FinamError(category, message, retryable=False, broker_code=None, grpc_status=None, native_code=None,
+native_message=None, outcome_unknown=False)` - исключение по умолчанию; `message` полный (для логов).
+Потребитель может передать `error_factory(category, message, *, retryable, broker_code[, grpc_status,
+native_code, native_message, outcome_unknown])`, чтобы клиент бросал собственный тип (BF передаёт
+`BrokerError`). Новые kwargs фактов передаются фабрике только если она их принимает (по сигнатуре).
 
 | `ErrorCategory` | Значение |
 |---|---|
@@ -1408,10 +1410,36 @@ _Поля отсутствуют._
 | `ORDER` | `order` |
 | `VALIDATION` | `validation` |
 
-`broker_code` - имя gRPC-статуса (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`, `INVALID_ARGUMENT`, ...),
-а также `place_timeout` (таймаут заявки: исход неизвестен), `auction_only`
-(отказ из-за аукциона: заявку можно повторить позже) и `insufficient_funds`
-(недостаточно обеспечения: постоянный отказ, повторять не нужно).
+### Факты об ошибке
+
+Любая ошибка Finam разбирается одной функцией в структурированные факты; клиент не решает,
+что с ними делать, и не вводит словарь потребителя.
+
+#### `RpcErrorFacts`
+
+
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `grpc_status` | `str` |  |  |
+| `native_code` | `int \| None` |  |  |
+| `native_message` | `str` |  |  |
+| `outcome_unknown` | `bool` | `False` |  |
+
+- `parse_rpc_error(exc: Any, *, placement: bool = False) -> finam_client.errors.RpcErrorFacts` - `grpc.RpcError` -> `RpcErrorFacts`; `placement=True` для размещения заявки (таймаут = `outcome_unknown`).
+- `parse_native_detail(detail: str | None) -> tuple[int | None, str]` - Текст detail Finam -> `(native_code, native_message)`.
+
+- `grpc_status` - имя gRPC-статуса (`INVALID_ARGUMENT`, `NOT_FOUND`, `UNAVAILABLE`, ...), всегда.
+- `native_code` - число из `[N]`/`(N)` в начале detail Finam (`145`, `90`, `10003`, `14302`), иначе `None`.
+- `native_message` - текст брокера без `gRPC error:`, имени статуса и номера; сегменты через `\f`
+  (английский и русский) сохранены все, разделитель заменён переводом строки.
+- `outcome_unknown` - таймаут размещения заявки: исход неизвестен, сверяйтесь по `client_order_id`.
+
+Те же факты лежат в полях `FinamError` и передаются в `error_factory`. Стримы (`subscribe_*`) отдают
+сырой gRPC-итератор: поймав `grpc.RpcError`, потребитель вызывает `parse_rpc_error(exc)`.
+
+`broker_code` оставлен для совместимости (новый код его не использует): имя gRPC-статуса либо
+`place_timeout` для таймаута заявки. Ярлыки `auction_only` и `insufficient_funds` удалены.
 
 ## Площадки и символы
 

@@ -93,15 +93,17 @@ resp = client.bars("SBER@MISX", md.TimeFrame.TIME_FRAME_H1, end - timedelta(days
 
 ## Ошибки и лимиты
 
-- Все ошибки - `FinamError` (или тип из `error_factory`) с `category`, `retryable`, `broker_code`.
+- Все ошибки - `FinamError` (или тип из `error_factory`) с `category`, `retryable` и фактами `grpc_status`, `native_code`, `native_message`, `outcome_unknown` (см. раздел «Ошибки» в API.md).
 - **Лимит Finam - около 200 запросов в минуту на токен.** Превышение даёт
   `RESOURCE_EXHAUSTED` ("Too Many Requests"). Клиент повторяет идемпотентные вызовы с паузой
   `rate_limit_backoff_sec * номер_попытки`, но для массовых задач (сотни `GetAsset`) нужен
   свой троттлинг порядка 150 запросов в минуту: на этом уровне 852 вызова прошли без отказов.
-- `place_order` и `place_sltp_order` не повторяются. `broker_code == "place_timeout"` -
-  таймаут заявки, исход неизвестен; сверяйтесь по `client_order_id`.
-- `broker_code == "auction_only"` - отказ из-за аукциона, заявку можно повторить после него.
-- `broker_code == "insufficient_funds"` - `INVALID_ARGUMENT` "[145]No enough coverage" / "Недостаток обеспечения": заявка больше доступного обеспечения, повтор не поможет.
+- `place_order` и `place_sltp_order` не повторяются. `outcome_unknown` - таймаут заявки,
+  исход неизвестен; сверяйтесь по `client_order_id`.
+- Решение «что делать» принимает потребитель по фактам (`grpc_status`, `native_code`, например
+  `INVALID_ARGUMENT` + `145` - нехватка обеспечения, `14302` - заявка запрещена в аукционе);
+  официального перечня кодов Finam нет. `broker_code` оставлен только для совместимости.
+- Ошибки стримов приходят как `grpc.RpcError`: `parse_rpc_error(exc)` даёт те же факты.
 
 ## Стримы
 

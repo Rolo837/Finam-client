@@ -171,3 +171,57 @@ def test_pacing_is_off_by_default(grpc_client):
         for _ in range(3):
             grpc_client.get_account("acc")
     sleep.assert_not_called()
+
+
+def test_unary_error_carries_facts(grpc_client):
+    detail = "INVALID_ARGUMENT: [145]No enough coverage. You need 1 RUR\x0cНедостаток обеспечения"
+    _install_place_order_failure(grpc_client, _FakeRpcError(StatusCode.INVALID_ARGUMENT, detail))
+
+    with pytest.raises(FinamError) as excinfo:
+        grpc_client.place_order(object())
+
+    err = excinfo.value
+    assert err.grpc_status == "INVALID_ARGUMENT"
+    assert err.native_code == 145
+    assert err.native_message == "No enough coverage. You need 1 RUR\nНедостаток обеспечения"
+    assert err.outcome_unknown is False
+    assert err.broker_code == "INVALID_ARGUMENT"
+    assert "[145]" in err.message
+
+
+def test_place_timeout_sets_outcome_unknown(grpc_client):
+    _install_place_order_failure(grpc_client, _FakeRpcError(StatusCode.DEADLINE_EXCEEDED))
+
+    with pytest.raises(FinamError) as excinfo:
+        grpc_client.place_order(object())
+
+    assert excinfo.value.outcome_unknown is True
+    assert excinfo.value.broker_code == "place_timeout"
+
+
+def test_refresh_jwt_error_carries_facts(grpc_client):
+    def _auth(**kwargs):
+        raise _FakeRpcError(StatusCode.UNAUTHENTICATED, "Api token could not be verified")
+
+    grpc_client.auth_stub.Auth.with_call = _auth
+    with pytest.raises(FinamError) as excinfo:
+        grpc_client._refresh_jwt()
+
+    err = excinfo.value
+    assert err.message == "Auth failed: Api token could not be verified"
+    assert err.grpc_status == "UNAUTHENTICATED"
+    assert err.native_code is None
+    assert err.native_message == "Api token could not be verified"
+
+
+def test_legacy_factory_without_fact_kwargs_still_works():
+    from finam_client.client import _accepted_fact_kwargs
+
+    def legacy(category, message, *, retryable=False, broker_code=None):
+        return None
+
+    def modern(category, message, *, retryable=False, broker_code=None, native_code=None, **kw):
+        return None
+
+    assert _accepted_fact_kwargs(legacy) == frozenset()
+    assert "native_code" in _accepted_fact_kwargs(modern)

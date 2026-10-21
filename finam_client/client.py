@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import threading
 import time
@@ -28,36 +29,34 @@ from google.type import interval_pb2
 from grpc import RpcError, StatusCode, secure_channel, ssl_channel_credentials
 
 from finam_client.config import ClientConfig, read_secret_file
-from finam_client.errors import ErrorCategory, ErrorFactory, FinamError, default_error_factory
+from finam_client.errors import (
+    ErrorCategory,
+    ErrorFactory,
+    FinamError,
+    RpcErrorFacts,
+    default_error_factory,
+    parse_rpc_error,
+)
 from finam_client.proto_values import timestamp_to_datetime
 from finam_client.symbols import validate_finam_symbol
 
 logger = logging.getLogger(__name__)
 
-# Substrings (case-insensitive) in a Finam error detail that mean the
-# rejection is specific to the opening-auction window, not a permanent
-# rejection of the order itself — same pattern as finam_arena/rest_client.py's
-# _classify_broker_code. Confirmed live: deal-d90e-4c2d-be3d's MARKET+DAY
-# entry got "(14302) FOK и IOC заявки запрещены в аукционе открытия" and was
-# cancelled outright — engine._is_transient_place_error didn't recognize the
-# code (a plain INVALID_ARGUMENT) as retryable.
 _RETRYABLE_CODES = frozenset(
     {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED, StatusCode.RESOURCE_EXHAUSTED}
 )
-_AUCTION_ONLY_MARKERS = ("(14302)", "аукцион", "auction")
-# Confirmed live (счёт test, лимитная заявка заведомо больше счёта): INVALID_ARGUMENT
-# "[145]No enough coverage. You need 396831.50 RUR / Недостаток обеспечения в сумме
-# 396831.50 RUR" — постоянный отказ из-за нехватки обеспечения (не повторять).
-_INSUFFICIENT_FUNDS_MARKERS = ("[145]", "no enough coverage", "недостаток обеспечения")
+_FACT_KWARGS = ("grpc_status", "native_code", "native_message", "outcome_unknown")
 
 
-def _classify_broker_code(detail: str) -> str | None:
-    lowered = (detail or "").lower()
-    if any(marker in lowered for marker in _AUCTION_ONLY_MARKERS):
-        return "auction_only"
-    if any(marker in lowered for marker in _INSUFFICIENT_FUNDS_MARKERS):
-        return "insufficient_funds"
-    return None
+def _accepted_fact_kwargs(factory: Callable[..., Any]) -> frozenset[str]:
+    """Какие из новых kwargs фактов принимает фабрика (старые фабрики BF - без них)."""
+    try:
+        params = inspect.signature(factory).parameters
+    except (TypeError, ValueError):
+        return frozenset()
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return frozenset(_FACT_KWARGS)
+    return frozenset(n for n in _FACT_KWARGS if n in params)
 
 
 class FinamApiClient:
@@ -103,6 +102,7 @@ class FinamApiClient:
     ):
         self._config = config
         self._error_factory = error_factory or default_error_factory
+        self._factory_fact_kwargs = _accepted_fact_kwargs(self._error_factory)
         self._pace_lock = threading.Lock()
         self._pace_next = 0.0
         self._secret = secret or read_secret_file(config.secret_file)
@@ -130,9 +130,26 @@ class FinamApiClient:
         *,
         retryable: bool = False,
         broker_code: str | None = None,
+        facts: RpcErrorFacts | None = None,
+        grpc_status: str | None = None,
+        native_code: int | None = None,
+        native_message: str | None = None,
+        outcome_unknown: bool = False,
     ) -> Exception:
+        if facts is not None:
+            grpc_status = facts.grpc_status
+            native_code = facts.native_code
+            native_message = facts.native_message
+            outcome_unknown = facts.outcome_unknown
+        extra = {
+            "grpc_status": grpc_status,
+            "native_code": native_code,
+            "native_message": native_message,
+            "outcome_unknown": outcome_unknown,
+        }
+        kwargs = {k: v for k, v in extra.items() if k in self._factory_fact_kwargs}
         return self._error_factory(
-            category, message, retryable=retryable, broker_code=broker_code
+            category, message, retryable=retryable, broker_code=broker_code, **kwargs
         )
 
     def _symbol(self, symbol: str) -> str:
@@ -145,6 +162,10 @@ class FinamApiClient:
                 exc.message,
                 retryable=exc.retryable,
                 broker_code=exc.broker_code,
+                grpc_status=exc.grpc_status,
+                native_code=exc.native_code,
+                native_message=exc.native_message,
+                outcome_unknown=exc.outcome_unknown,
             ) from exc
 
     @property
@@ -211,7 +232,13 @@ class FinamApiClient:
                 logger.debug("JWT expires_at=%s", self._jwt_expires_at.isoformat())
                 return
         except RpcError as exc:
-            logger.debug("TokenDetails after auth failed: %s", exc.details())
+            facts = parse_rpc_error(exc)
+            logger.debug(
+                "TokenDetails after auth failed: %s code=%s %s",
+                facts.grpc_status,
+                facts.native_code,
+                facts.native_message,
+            )
         except Exception as exc:
             logger.debug("TokenDetails after auth failed: %s", exc)
         self._jwt_expires_at = datetime.now(timezone.utc) + timedelta(seconds=self.JWT_TTL_SEC - 120)
@@ -224,11 +251,13 @@ class FinamApiClient:
                 timeout=self.TIMEOUT_SEC,
             )
         except RpcError as exc:
-            retryable = exc.code() in {StatusCode.UNAVAILABLE, StatusCode.DEADLINE_EXCEEDED}
+            facts = parse_rpc_error(exc)
+            retryable = facts.grpc_status in {"UNAVAILABLE", "DEADLINE_EXCEEDED"}
             raise self._error(
                 ErrorCategory.AUTH,
                 f"Auth failed: {exc.details()}",
                 retryable=retryable,
+                facts=facts,
             ) from exc
         self._jwt_token = response.token
         self._jwt_issued = int(now.timestamp())
@@ -363,24 +392,24 @@ class FinamApiClient:
                 category = ErrorCategory.GRPC
                 if exc.code() == StatusCode.UNAUTHENTICATED:
                     category = ErrorCategory.AUTH
-                broker_code = exc.code().name
-                if not idempotent and exc.code() == StatusCode.DEADLINE_EXCEEDED:
-                    broker_code = "place_timeout"
-                classified = _classify_broker_code(exc.details())
-                if classified is not None:
-                    broker_code = classified
+                facts = parse_rpc_error(exc, placement=not idempotent)
+                # broker_code - только совместимость (BF): gRPC-статус либо place_timeout.
+                broker_code = "place_timeout" if facts.outcome_unknown else facts.grpc_status
                 raise self._error(
                     category,
                     f"gRPC error: {exc.details()}",
                     retryable=retryable,
                     broker_code=broker_code,
+                    facts=facts,
                 ) from exc
         if last_exc is not None:
+            facts = parse_rpc_error(last_exc, placement=not idempotent)
             raise self._error(
                 ErrorCategory.GRPC,
                 f"gRPC error: {last_exc.details()}",
                 retryable=False,
-                broker_code=last_exc.code().name,
+                broker_code=facts.grpc_status,
+                facts=facts,
             ) from last_exc
         raise self._error(ErrorCategory.AUTH, "gRPC retry exhausted", retryable=False)
 
